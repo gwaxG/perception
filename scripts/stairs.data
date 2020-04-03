@@ -1,0 +1,7 @@
+classes=1
+train=./data/stairs_dataset/train.txt
+valid=./data/stairs_dataset/valid.txt
+names=data/stairs_dataset/stairs.names
+backup=backup/
+eval=stairs
+
