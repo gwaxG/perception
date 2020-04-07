@@ -92,13 +92,14 @@ class DetectorDepth:
 
     def find_perpendicularity(self, coefs):
         length = len(coefs)
-        P = [[0]*length]*length
+        P = []
         for i in range(length):
+            cur = []
             for j in range(length):
                 # coefs[i] - current plane
                 # we are looking for perpendicularity with jth plane
-
-                P[i][j] = round(np.dot(coefs[i][:3], coefs[j][:3]), 2)
+                cur.append(round(np.dot(coefs[i][:3], coefs[j][:3]), 2))
+            P.append(cur)
         return P
 
     def print_matrix(self, P):
@@ -139,12 +140,9 @@ class DetectorDepth:
         Returns:
 
         '''
+
         # Find vertical sizes of planes (along Y-axis)
         sizes = {}
-        # print(len(planes))
-        # print(len(planes[0]))
-        # print(len(planes[0][0]))
-
         for i, plane in enumerate(planes):
             miny = plane[0][1]
             maxy = plane[0][1]
@@ -155,7 +153,9 @@ class DetectorDepth:
                     maxy = point[1]
             if maxy-miny < self.stair_limits['height'] and i != floor:
                 sizes[i] = maxy-miny
+
         cands = sizes.keys()
+
         # Filter candidates
         # Check collinearity
         todelete = []
@@ -164,6 +164,8 @@ class DetectorDepth:
 
                 if P[i][j] < 0.95:
                     todelete.append(j)
+                # for i, p in enumerate(P):
+                # print(i, p)
         cands = [cand for cand in cands if cand not in todelete]
         # Distances
         pos_z = {}
@@ -361,27 +363,27 @@ class DetectorDepth:
         planes = self.polygons2list(polygs)
         coefs = self.coefs2list(coefs)
 
-         # Calculate perimeters
+        # Calculate perimeters
         # perimeters = self.get_perimeters(planes)
 
         # Calculate matrix of perpendicularity
         P = self.find_perpendicularity(coefs)
 
-        # Calculate mean polygon positions
-        positions = self.get_polyg_points(planes)
-        if len(positions) == 0:
+        # Calculate mean polygon centroids
+        centroids = self.get_polyg_points(planes)
+        if len(centroids) == 0:
             return None
 
         # I Find floor
         # Calculating the lowest polygon
-        floor_index = self.low_polygon(positions) # self.filter_floor_candidates(perimeters, candidates)
+        floor_index = self.low_polygon(centroids) # self.filter_floor_candidates(perimeters, candidates)
 
         # Publish floor polygon and its coefficients
         self.publish_polygons(polygs, [floor_index], self.floor_pub)
 
         # II Find stair
         # indexes contains plane indexes in the order of closeness
-        indexes, closest, farther = self.find_stair(positions, floor_index, planes, P)
+        indexes, closest, farther = self.find_stair(centroids, floor_index, planes, P)
 
         # Publish stair
         self.publish_polygons(polygs, indexes, self.stair_pub)
@@ -400,10 +402,10 @@ class DetectorDepth:
             self.publish_parameters(h, p, n, angle)
 
             # V Find first step and publish its pose
-            self.broadcast_step_pose(positions[indexes[-1]], coefs[indexes[-1]])
+            self.broadcast_step_pose(centroids[indexes[-1]], coefs[indexes[-1]])
 
             # VI Retrieve corner points and publish a bounding box
-            bbox = self.get_bbox(planes, positions, indexes, h, n)
+            bbox = self.get_bbox(planes, centroids, indexes, h, n)
             if len(bbox) != 0:
                 self.publish_bbox(bbox)
 

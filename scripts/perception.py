@@ -59,14 +59,42 @@ class RGBDetection:
         cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color)
         return img
 
+    def get_overlapped(self, P1, P2):
+        P11 = P1[0]
+        P12 = P1[1]
+        P21 = P2[0]
+        P22 = P2[1]
+        # Is the point 3 inside of the rectangle formed by p1 and p2 (p1 is the upper left corner) ?
+        is_inside = lambda p1, p2, p3: True if p3[0] < p2[0] and p3[0] > p1[0] and p3[1] < p2[1] and p3[1] > p1[1] else False
+        # Calculate surface of the rectangle formed by two points p1 and p2
+        surf = lambda p1, p2:  (p2[1] - p1[1]) * (p2[0] - p1[0])
+
+        if is_inside(P11, P12, P21) and not is_inside(P11, P12, P22):
+            return surf(P21, P12) / surf(P11, P12), surf(P21, P12) / surf(P21, P22)
+
+        elif is_inside(P11, P12, P21) and is_inside(P11, P12, P22):
+            return surf(P21, P22) / surf(P11, P12), 1.0
+
+        elif is_inside(P21, P22, P11) and is_inside(P21, P22, P12):
+            return 1.0, surf(P11, P12) / surf(P21, P22)
+
+        elif not is_inside(P11, P12, P21) and is_inside(P11, P12, P22):
+            return surf(P11, P21) / surf(P11, P12), surf(P11, P21) / surf(P21, P22)
+
+        else:
+            return 0., 0.
+
     def compare_bboxes(self):
         self.depth_bbox_updated = False
         self.rgb_bbox_updated = False
-        overlapped = False
-        # if overlapped:
-        #     self.bbox_image = self.draw_bbox(img, self.depth_bbox, 'depth')
-        #     self.bbox_image = self.draw_bbox(img, self.rgb_bbox, 'rgb')
-        #     self.publish_image(img)
+
+        #  take two points that consist of 4 points: P11, P12, P21, P22; and get ration of overlapping for every surface
+
+        s1, s2 = self.get_overlapped(self.rgb_bbox, self.depth_bbox)
+        if s1 > 0.5 and s2 > 0.5:
+            self.bbox_image = self.draw_bbox(self.bbox_image, self.depth_bbox, 'depth')
+            self.bbox_image = self.draw_bbox(self.bbox_image, self.rgb_bbox, 'rgb')
+            self.publish_image(self.bbox_image)
 
     def publish_image(self, img):
         try:
