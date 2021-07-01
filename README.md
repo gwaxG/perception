@@ -1,3 +1,2 @@
 # svision
-Stair detection and tracking on RGBD images
-# perception
+Stair detection and tracking in RGBD images
